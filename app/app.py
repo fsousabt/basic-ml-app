@@ -10,8 +10,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from intent_classifier import IntentClassifier
-from db.engine import get_mongo_collection
-from app.auth import verify_token
+from db.auth import conditional_auth
+from app import services
+
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +35,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost",
-        "http://localhost:3000",  # React ou outra frontend local
-        "https://meusite.com",    # domínio em produção
+        # "http://localhost:3000",  # React ou outra frontend local
+        # "https://meusite.com",    # domínio em produção
     ],
     allow_credentials=True,
     allow_methods=["*"],              # permite todos os métodos: GET, POST, etc
@@ -44,93 +45,47 @@ app.add_middleware(
     # Em produção: evite "*" e especifique os domínios confiáveis.
 )
 
-# Initialize database connection
-collection = None
-try:
-    collection = get_mongo_collection(f"{ENV.upper()}_intent_logs")
-    logger.info("Database connection established")
-except Exception as e:
-    logger.error(f"Failed to connect to database: {str(e)}")
-    logger.error(traceback.format_exc())
 
-
-async def conditional_auth():
-    """Returns user based on environment mode"""
-    global ENV
-    if ENV == "dev":
-        logger.info("Development mode: skipping authentication")
-        return "dev_user"
-    else:
-        try:
-            return verify_token() 
-        except HTTPException as he:
-            raise he
-        except Exception as e:
-            # 3. Catch any *other* unexpected errors
-            logger.error(f"Unexpected authentication error: {str(e)}")
-            logger.error(traceback.format_exc())
-            raise HTTPException(status_code=401, detail="Authentication failed")
-
-
-# Load models
+# Initialize models
 MODELS = {}
-try:
-    logger.info("Loading confusion model...")
-    # Load all the .keras files in the intent_classifier/models folder
-    model_files = [f for f in os.listdir(os.path.join(os.path.dirname(__file__), "..", "intent_classifier", "models")) if f.endswith(".keras")]
-    for model_file in model_files:
-        model_path = os.path.join(os.path.dirname(__file__), "..", "intent_classifier", "models", model_file)
-        model_name = model_file.replace(".keras", "")
-        MODELS[model_name] = IntentClassifier(load_model=model_path)
+try: 
+    logger.info("Loading models...")
+    MODELS = services.load_all_models()
     logger.info("Models loaded successfully")
 except Exception as e:
     logger.error(f"Failed to load models: {str(e)}")
     logger.error(traceback.format_exc())
+    raise Exception(f"Failed to load models: {str(e)}")
 
 
 """
 Routes
 """
-
 @app.get("/")
 async def root():
-    return {"message": f"Basic ML App is running in {ENV} mode"}
-
+    return {"message": "Basic ML App is running in {ENV} mode"}
 
 @app.post("/predict")
 async def predict(text: str, owner: str = Depends(conditional_auth)):
-    # ... (prediction generation code is the same) ...
-    predictions = {}
-    for model_name, model in MODELS.items():
-        top_intent, all_probs = model.predict(text)
-        predictions[model_name] = {
-            "top_intent": top_intent,
-            "all_probs": all_probs
-        }
-
-    results = {
-        "text": text, 
-        "owner": owner, 
-        "predictions": predictions, 
-        "timestamp": int(datetime.now(timezone.utc).timestamp())
-    }
-    
-    # Log the prediction to the database
+    """
+    Endpoint de predição.
+    Este é um 'Controller' enxuto. Ele apenas delega.
+    """
     try:
-        collection.insert_one(results)
-        # If insert_one succeeds, it adds '_id' to the 'results' dict
-        results['id'] = str(results.get('_id'))
-        results.pop('_id', None)
+        # 1. O Controller delega TODA a lógica de negócio para o Serviço
+        results = services.predict_and_log_intent(
+            text=text, 
+            owner=owner, 
+            models=MODELS
+        )
+        
+        # 2. O Controller retorna a resposta (Lógica de View)
+        return JSONResponse(content=results)
+        
     except Exception as e:
-        # If insert_one fails, log the error and continue
-        logger.error(f"CRITICAL: Failed to log prediction to database. Error: {e}")
+        logger.error(f"Erro na predição: {str(e)}")
         logger.error(traceback.format_exc())
-        # We can set 'id' to None to show it wasn't logged
-        results['id'] = None
-        # Make sure to pop '_id' in case insert_one added it but failed after
-        results.pop('_id', None)
-
-    return JSONResponse(content=results)
+        raise HTTPException(status_code=500, detail="Erro interno ao processar a predição.")
 
 
 

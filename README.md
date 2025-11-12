@@ -56,10 +56,16 @@ Acompanhe abaixo a linha temporal das alterações realizadas até o momento:
 > _______________
 > ### 5️⃣ : Readequação ao padrão MVC (Model, View, Controller)
 >
+> Nesta etapa, a arquitetura da aplicação foi refatorada para aderir ao padrão MVC (Model-View-Controller), visando uma melhor separação de responsabilidades e facilitando a manutenção.
+>
 > **Tópicos abordados:**
-> *   ...
+> * Identificação do problema de "Fat Controller" no `app/app.py`, que acumulava lógica de rotas, negócios e acesso a dados.
+> * Criação do `app/services.py` para conter a lógica de negócio (ex: orquestrar predições, carregar modelos, logar no banco).
+> * Ajuste do `db/engine.py` para abstrair toda a comunicação direta com o banco de dados (CRUD).
+> * Criação do `app/schemas.py`, usando Pydantic para definir o contrato (schema) das respostas JSON da API.
+> * Refatoração do `app/app.py` para atuar puramente como **Controller**, responsável apenas por receber requisições HTTP, lidar com autenticação e orquestrar as outras camadas.
+> * Centralização de toda a lógica de autenticação (ex: `conditional_auth`) no módulo `db/auth.py`.
 > _______________
-
 
 
 ---
