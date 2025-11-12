@@ -45,6 +45,7 @@ app.add_middleware(
 )
 
 # Initialize database connection
+collection = None
 try:
     collection = get_mongo_collection(f"{ENV.upper()}_intent_logs")
     logger.info("Database connection established")
