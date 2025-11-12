@@ -45,6 +45,22 @@ Acompanhe abaixo a linha temporal das alterações realizadas até o momento:
 > _______________
 
 
+> _______________
+> ### 4️⃣ : Expandindo os testes da API
+>
+> **Tópicos abordados:**
+> *   ...
+> _______________
+
+
+> _______________
+> ### 5️⃣ : Readequação ao padrão MVC (Model, View, Controller)
+>
+> **Tópicos abordados:**
+> *   ...
+> _______________
+
+
 
 ---
 
@@ -55,7 +71,7 @@ Acompanhe abaixo a linha temporal das alterações realizadas até o momento:
 ├── app/                        # Lógica do serviço web
 │   ├── app.py                  # Implementação do backend com FastAPI
 │   ├── app.Dockerfile          # Definição do container em que o backend roda
-│   └── auth.py                 # Implementação do backend
+│   └── auth.py                 # Gestão dos tokens
 ├── db/                         # Lógica do banco de dados
 │   └── engine.py               # Encapsulamento do pymongo
 ├── intent-classifier/          # Scripts relacionados ao modelo de ML

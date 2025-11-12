@@ -45,6 +45,7 @@ app.add_middleware(
 )
 
 # Initialize database connection
+collection = None
 try:
     collection = get_mongo_collection(f"{ENV.upper()}_intent_logs")
     logger.info("Database connection established")
@@ -61,9 +62,13 @@ async def conditional_auth():
         return "dev_user"
     else:
         try:
-            return await verify_token()
+            return verify_token() 
+        except HTTPException as he:
+            raise he
         except Exception as e:
-            logger.error(f"Authentication failed: {str(e)}")
+            # 3. Catch any *other* unexpected errors
+            logger.error(f"Unexpected authentication error: {str(e)}")
+            logger.error(traceback.format_exc())
             raise HTTPException(status_code=401, detail="Authentication failed")
 
 
@@ -89,12 +94,12 @@ Routes
 
 @app.get("/")
 async def root():
-    return {"message": "Basic ML App is running in {ENV} mode"}
+    return {"message": f"Basic ML App is running in {ENV} mode"}
 
 
 @app.post("/predict")
 async def predict(text: str, owner: str = Depends(conditional_auth)):
-    # Generate predictions
+    # ... (prediction generation code is the same) ...
     predictions = {}
     for model_name, model in MODELS.items():
         top_intent, all_probs = model.predict(text)
@@ -110,9 +115,20 @@ async def predict(text: str, owner: str = Depends(conditional_auth)):
         "timestamp": int(datetime.now(timezone.utc).timestamp())
     }
     
-    collection.insert_one(results)
-    results['id'] = str(results['_id'])
-    results.pop('_id')
+    # Log the prediction to the database
+    try:
+        collection.insert_one(results)
+        # If insert_one succeeds, it adds '_id' to the 'results' dict
+        results['id'] = str(results.get('_id'))
+        results.pop('_id', None)
+    except Exception as e:
+        # If insert_one fails, log the error and continue
+        logger.error(f"CRITICAL: Failed to log prediction to database. Error: {e}")
+        logger.error(traceback.format_exc())
+        # We can set 'id' to None to show it wasn't logged
+        results['id'] = None
+        # Make sure to pop '_id' in case insert_one added it but failed after
+        results.pop('_id', None)
 
     return JSONResponse(content=results)
 

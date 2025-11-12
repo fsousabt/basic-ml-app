@@ -130,20 +130,20 @@ def test_init_fails_without_config_or_model(monkeypatch):
 def test_preprocess_text_lowercase(clf_minimal):
     """Testa a conversão para minúsculas."""
     result_tensor = clf_minimal.preprocess_text("OI TUDO BEM?")
-    assert result_tensor.shape == (1,)
-    assert result_tensor.numpy()[0] == b'oi tudo bem?'
+    assert result_tensor.shape == ()
+    assert result_tensor.numpy() == b'oi tudo bem?'
 
 def test_preprocess_text_min_words(clf_minimal):
     """Testa o padding de 'min_words'."""
     # A config em 'clf_minimal' define min_words=2
     # O código fonte adiciona (min_words + 1) de padding
     result_tensor = clf_minimal.preprocess_text("oi") # Menor que min_words
-    assert result_tensor.numpy()[0] == b'<> <> <>'
+    assert result_tensor.numpy() == b'<> <> <>'
 
 def test_preprocess_text_stopwords(clf_with_stopwords):
     """Testa a remoção de stopwords."""
     result_tensor = clf_with_stopwords.preprocess_text("uma frase de teste")
-    assert result_tensor.numpy()[0] == b'frase teste'
+    assert result_tensor.numpy() == b'frase teste'
 
 # --- Testes de Sanidade Local (Médios) ---
 
